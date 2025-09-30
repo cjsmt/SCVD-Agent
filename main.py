@@ -50,7 +50,7 @@ def get_conversational_chain(tools, ques):
         ),
         ("placeholder", "{chat_history}"),
         ("human", "{input}"),
-        ("placeholder", "agent_scratchpad"),
+        ("placeholder", "{agent_scratchpad}"),
     ])
 
     tool = [tools]
@@ -64,7 +64,7 @@ def get_conversational_chain(tools, ques):
 
 # 6. 检查FAISS数据库是否存在，检查本地是否已有向量化的数据
 def check_database_exists():
-    return os.path.exists("faiss_db") and os.path.exists("faiss/index.faiss")
+    return os.path.exists("faiss_db") and os.path.exists("faiss_db/index.faiss")
 
 # 7. 用户提问逻辑（调用FAISS）
 def user_input(user_question):
@@ -90,6 +90,8 @@ def user_input(user_question):
 
 # 前端网页界面
 def main():
+    st.write("当前工作目录：", os.getcwd())
+    st.write("faiss_db路径是否存在：", os.path.exists("faiss_db"))
     st.set_page_config("🤖 智能合约安全漏洞检测工具")
     st.header("🤖 智能合约安全漏洞检测工具")
     
