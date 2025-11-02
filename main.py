@@ -6,7 +6,7 @@ from rag import embeddings, pdf_read, get_chunks, vector_store, check_database_e
 from agent import get_conversational_chain
 
 # 7. 用户提问逻辑（调用FAISS）
-def user_input(user_question):
+def user_input(user_question, contract_code):
     # 检查数据库是否存在
     if not check_database_exists():
         st.error("❌ 请先上传PDF文件并点击'Submit & Process'按钮来处理文档！")
@@ -20,7 +20,10 @@ def user_input(user_question):
         # 构建retriever工具
         retriever = new_db.as_retriever()
         retrieval_chain = create_retriever_tool(retriever, "pdf_extractor", "This tool is to give answer to queries from the pdf")
-        get_conversational_chain(retrieval_chain, user_question)
+        
+        # 调用对话链
+        response = get_conversational_chain(retrieval_chain, user_question, contract_code)
+        st.write("🤖 回答: ", response)
         
     except Exception as e:
         st.error(f"❌ 加载数据库时出错: {str(e)}")
@@ -29,20 +32,41 @@ def user_input(user_question):
 
 # 前端网页界面
 def main():
-    st.set_page_config("🤖 智能合约安全漏洞检测工具")
-    st.header("🤖 智能合约安全漏洞检测工具")
+    st.set_page_config("Smart Contracts Vulnerability Detection tool", layout="wide")
+    st.header("Smart Contracts Vulnerability Detection tool")
     
     # 显示数据库状态
-    col1, col2 = st.columns([3, 1])
-    
-    with col1:
-        if check_database_exists():
-            pass
+    if check_database_exists():
+        pass
+    else:
+        st.warning("⚠️ Please upload and process PDF files to create the database.")
+
+    # 拖拽上传框
+    contract_code = st.file_uploader("📜 Upload your Smart Contract :", type=["sol"], accept_multiple_files=False, help="拖拽或点击上传智能合约文件（.sol）")
+
+    user_question = st.text_input("💬 Your question:", 
+                                placeholder="Enter your question about the uploaded smart contract...",
+                                disabled=not check_database_exists())
+
+    # 提交按钮
+    if st.button("提交", disabled=not check_database_exists()):
+        if user_question and contract_code:
+            with st.spinner("🤔 AI正在分析文档..."):
+                user_input(user_question, contract_code.read().decode("utf-8"))  # 读取文件内容并解码为字符串
         else:
-            st.warning("⚠️ 请先上传并处理PDF文件")
-    
-    with col2:
-        if st.button("🗑️ 清除数据库"):
+            st.error("❌ 请确保输入问题和上传智能合约代码！")
+
+    # 侧边栏
+    with st.sidebar:
+        st.title("📁 File Management")
+        
+        # 显示当前状态
+        if check_database_exists():
+            st.success("✅ Database Status：Ready")
+        else:
+            st.info("📝 Status: Waiting for uploading PDF.")
+
+        if st.button("🗑️ Clear Database"):
             try:
                 import shutil
                 if os.path.exists("faiss_db"):
@@ -51,93 +75,56 @@ def main():
                 st.rerun()
             except Exception as e:
                 st.error(f"清除失败: {e}")
-
-    # 用户问题输入
-    user_question = st.text_input("💬 请输入问题", 
-                                placeholder="例如：这个文档的主要内容是什么？",
-                                disabled=not check_database_exists())
-
-    if user_question:
-        if check_database_exists():
-            with st.spinner("🤔 AI正在分析文档..."):
-                user_input(user_question)
-        else:
-            st.error("❌ 请先上传并处理PDF文件！")
-
-    # 侧边栏
-    with st.sidebar:
-        st.title("📁 文档管理")
-        
-        # 显示当前状态
-        if check_database_exists():
-            st.success("✅ 数据库状态：已就绪")
-        else:
-            st.info("📝 状态：等待上传PDF")
         
         st.markdown("---")
         
         # 文件上传
         pdf_doc = st.file_uploader(
-            "📎 上传PDF文件", 
+            "📎 Upload PDF", 
             accept_multiple_files=True,
             type=['pdf'],
-            help="支持上传多个PDF文件"
+            help="Upload one or more PDF files for processing"
         )
         
         if pdf_doc:
-            st.info(f"📄 已选择 {len(pdf_doc)} 个文件")
+            st.info(f"📄 {len(pdf_doc)} files have been chosen")
             for i, pdf in enumerate(pdf_doc, 1):
                 st.write(f"{i}. {pdf.name}")
         
         # 处理按钮
         process_button = st.button(
-            "🚀 提交并处理", 
+            "🚀 submit and process", 
             disabled=not pdf_doc,
             use_container_width=True
         )
         
         if process_button:
             if pdf_doc:
-                with st.spinner("📊 正在处理PDF文件..."):
+                with st.spinner("📊 Processing PDF files..."):
                     try:
                         # 读取PDF内容
                         raw_text = pdf_read(pdf_doc)
                         
                         if not raw_text.strip():
-                            st.error("❌ 无法从PDF中提取文本，请检查文件是否有效")
+                            st.error("❌ The uploaded PDF file is empty or its content cannot be read. Please check the file and upload it again.")
                             return
                         
                         # 分割文本
                         text_chunks = get_chunks(raw_text)
-                        st.info(f"📝 文本已分割为 {len(text_chunks)} 个片段")
+                        st.info(f"📝 The text has been divided into {len(text_chunks)} segments")
                         
                         # 创建向量数据库
                         vector_store(text_chunks)
                         
-                        st.success("✅ PDF处理完成！现在可以开始提问了")
+                        st.success("✅ Finish Processing! Now You can start asking questions.")
                         st.balloons()
                         st.rerun()
                         
                     except Exception as e:
-                        st.error(f"❌ 处理PDF时出错: {str(e)}")
+                        st.error(f"❌ An error occurred while processing the PDF: {str(e)}")
             else:
-                st.warning("⚠️ 请先选择PDF文件")
+                st.warning("⚠️ Please upload at least one PDF file before processing.")
         
-        # 使用说明
-        with st.expander("💡 使用说明"):
-            st.markdown("""
-            **步骤：**
-            1. 📎 上传一个或多个PDF文件
-            2. 🚀 点击"Submit & Process"处理文档
-            3. 💬 在主页面输入您的问题
-            4. 🤖 AI将基于PDF内容回答问题
-            
-            **提示：**
-            - 支持多个PDF文件同时上传
-            - 处理大文件可能需要一些时间
-            - 可以随时清除数据库重新开始
-            """)
-
 if __name__ == "__main__":
     main()
 
