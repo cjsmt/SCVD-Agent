@@ -1,34 +1,8 @@
 import streamlit as st
 import os
-from langchain_community.vectorstores import FAISS
-from langchain.tools.retriever import create_retriever_tool
-from rag import embeddings, pdf_read, get_chunks, vector_store, check_database_exists
-from agent import get_conversational_chain
-
-# 7. 用户提问逻辑（调用FAISS）
-def user_input(user_question, contract_code):
-    # 检查数据库是否存在
-    if not check_database_exists():
-        st.error("❌ 请先上传PDF文件并点击'Submit & Process'按钮来处理文档！")
-        st.info("💡 步骤：1️⃣ 上传PDF → 2️⃣ 点击处理 → 3️⃣ 开始提问")
-        return
-    
-    try:
-        # 加载FAISS数据库
-        new_db = FAISS.load_local("faiss_db", embeddings, allow_dangerous_deserialization=True)
-        
-        # 构建retriever工具
-        retriever = new_db.as_retriever()
-        retrieval_chain = create_retriever_tool(retriever, "pdf_extractor", "This tool is to give answer to queries from the pdf")
-        
-        # 调用对话链
-        response = get_conversational_chain(retrieval_chain, user_question, contract_code)
-        st.write("🤖 回答: ", response)
-        
-    except Exception as e:
-        st.error(f"❌ 加载数据库时出错: {str(e)}")
-        st.info("请重新处理PDF文件")
-
+from rag import pdf_read, get_chunks, vector_store, check_database_exists
+from benchmark import benchmark_contracts
+from agent import get_answer_with_rag
 
 # 前端网页界面
 def main():
@@ -52,9 +26,43 @@ def main():
     if st.button("提交", disabled=not check_database_exists()):
         if user_question and contract_code:
             with st.spinner("🤔 AI正在分析文档..."):
-                user_input(user_question, contract_code.read().decode("utf-8"))  # 读取文件内容并解码为字符串
+                try:
+                    response = get_answer_with_rag(user_question, contract_code.read().decode("utf-8"))  # 读取文件内容并解码为字符串
+                    st.write("🤖 回答: ", response)
+                except Exception as e:
+                    st.error(f"❌ 加载数据库时出错: {str(e)}")
+                    st.info("💡 请重新处理PDF文件")
         else:
             st.error("❌ 请确保输入问题和上传智能合约代码！")
+
+    # 基准测试部分
+    st.markdown("---")
+    st.header("基准测试")
+    
+    # 添加复选框，询问是否为有漏洞的合约
+    is_vulnerable = st.checkbox("所有上传的合约是否为有漏洞的合约？", value=False)
+    
+    # 上传多个智能合约文件
+    uploaded_contracts = st.file_uploader("📂 上传智能合约文件（.sol）", type=["sol"], accept_multiple_files=True)
+    
+    contracts = []
+    
+    if uploaded_contracts:
+        for uploaded_file in uploaded_contracts:
+            # 读取文件内容
+            contract_code = uploaded_file.read().decode("utf-8")
+            # 根据复选框状态自动附上标签
+            label = "有漏洞" if is_vulnerable else "无漏洞"
+            contracts.append({"code": contract_code, "label": label})
+
+    check_rag = st.checkbox("在基准测试中查阅RAG知识库", value=True)
+    
+    if st.button("开始基准测试"):
+        if contracts:
+            accuracy = benchmark_contracts(check_rag, contracts)
+            st.success(f"基准测试完成！准确率: {accuracy:.2f}%")
+        else:
+            st.warning("⚠️ 请上传至少一个智能合约文件进行基准测试。")
 
     # 侧边栏
     with st.sidebar:
@@ -124,7 +132,7 @@ def main():
                         st.error(f"❌ An error occurred while processing the PDF: {str(e)}")
             else:
                 st.warning("⚠️ Please upload at least one PDF file before processing.")
-        
+
 if __name__ == "__main__":
     main()
 
