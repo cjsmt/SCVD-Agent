@@ -25,7 +25,7 @@ This project is a smart contract vulnerability detection tool designed to help d
 1. Clone the project:
 
    ```bash
-   git clone https://github.com/yourusername/SCVD-Agent.git
+   git clone https://github.com/cjsmt/SCVD-Agent.git
    cd SCVD-Agent
    ```
 
