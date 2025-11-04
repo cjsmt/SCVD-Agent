@@ -12,7 +12,7 @@ load_dotenv(override=True)
 # 5. Agent对话链 + 工具调用（核心RAG）
 DeepSeek_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
 
-def get_conversational_chain(tools, ques):
+def get_conversational_chain(tools, ques, contract_code):
     llm = init_chat_model("deepseek-chat", model_provider="deepseek")
     prompt = ChatPromptTemplate.from_messages([
         (
@@ -24,13 +24,16 @@ def get_conversational_chain(tools, ques):
         ("placeholder", "{agent_scratchpad}"),
     ])
 
-    tool = [tools]
+    if tools is None:
+        tool = []
+    else:
+        tool = [tools]
     agent = create_tool_calling_agent(llm, tool, prompt)
     agent_executor = AgentExecutor(agent=agent, tools=tool, verbose=True)
 
-    response = agent_executor.invoke({"input": ques})
-    print(response)
-    st.write("🤖 回答: ", response['output'])
+    full_input = f"合约代码：\n{contract_code}\n\n问题：{ques}"
+    response = agent_executor.invoke({"input": full_input})
+    return response
 
 # 7. 用户提问逻辑（调用FAISS）
 def get_answer_with_rag(user_question, contract_code):

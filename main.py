@@ -4,6 +4,10 @@ from rag import pdf_read, get_chunks, vector_store, check_database_exists
 from benchmark import benchmark_contracts
 from agent import get_answer_with_rag
 
+# 检查目录是否非空
+def is_directory_non_empty(directory):
+    return any(os.scandir(directory))
+
 # 前端网页界面
 def main():
     st.set_page_config("Smart Contracts Vulnerability Detection tool", layout="wide")
@@ -15,54 +19,57 @@ def main():
     else:
         st.warning("⚠️ Please upload and process PDF files to create the database.")
 
-    # 拖拽上传框
-    contract_code = st.file_uploader("📜 Upload your Smart Contract :", type=["sol"], accept_multiple_files=False, help="拖拽或点击上传智能合约文件（.sol）")
+    # Drag and drop upload box
+    contract_code = st.file_uploader("📜 Upload your Smart Contract:", type=["sol"], accept_multiple_files=False, help="Drag and drop or click to upload smart contract files (.sol)")
 
     user_question = st.text_input("💬 Your question:", 
                                 placeholder="Enter your question about the uploaded smart contract...",
                                 disabled=not check_database_exists())
 
-    # 提交按钮
-    if st.button("提交", disabled=not check_database_exists()):
+    # Submit button
+    if st.button("Submit", disabled=not check_database_exists()):
         if user_question and contract_code:
-            with st.spinner("🤔 AI正在分析文档..."):
+            with st.spinner("🤔 AI is analyzing the document..."):
                 try:
-                    response = get_answer_with_rag(user_question, contract_code.read().decode("utf-8"))  # 读取文件内容并解码为字符串
-                    st.write("🤖 回答: ", response)
+                    response = get_answer_with_rag(user_question, contract_code.read().decode("utf-8"))  # Read file content and decode to string
+                    st.write("🤖 Answer: ", response['output'])
                 except Exception as e:
-                    st.error(f"❌ 加载数据库时出错: {str(e)}")
-                    st.info("💡 请重新处理PDF文件")
+                    st.error(f"❌ Error loading database: {str(e)}")
+                    st.info("💡 Please reprocess the PDF file")
         else:
-            st.error("❌ 请确保输入问题和上传智能合约代码！")
+            st.error("❌ Please ensure you have entered a question and uploaded the smart contract code!")
 
     # 基准测试部分
     st.markdown("---")
-    st.header("基准测试")
+    st.header("Benchmark Testing for Smart Contract Vulnerability Detection")
     
     # 添加复选框，询问是否为有漏洞的合约
     is_vulnerable = st.checkbox("所有上传的合约是否为有漏洞的合约？", value=False)
     
-    # 上传多个智能合约文件
-    uploaded_contracts = st.file_uploader("📂 上传智能合约文件（.sol）", type=["sol"], accept_multiple_files=True)
-    
-    contracts = []
-    
-    if uploaded_contracts:
+    # Upload multiple smart contract files
+    uploaded_contracts = st.file_uploader("📂 Upload smart contract files (.sol)", type=["sol"], accept_multiple_files=True)
+    if uploaded_contracts and st.button("Upload"):
+        save_dir = f"test_dataset/{'vulnerable' if is_vulnerable else 'safe'}"
+        os.makedirs(save_dir, exist_ok=True)  # 确保目录存在
         for uploaded_file in uploaded_contracts:
-            # 读取文件内容
+            save_path = os.path.join(save_dir, uploaded_file.name)
             contract_code = uploaded_file.read().decode("utf-8")
-            # 根据复选框状态自动附上标签
-            label = "有漏洞" if is_vulnerable else "无漏洞"
-            contracts.append({"code": contract_code, "label": label})
+            with open(save_path, "w") as f:
+                f.write(contract_code)
+        st.success(f"Files have been saved to {save_dir}")
 
-    check_rag = st.checkbox("在基准测试中查阅RAG知识库", value=True)
+    check_rag = st.checkbox("Consult RAG knowledge base during benchmark testing", value=True)
     
-    if st.button("开始基准测试"):
-        if contracts:
-            accuracy = benchmark_contracts(check_rag, contracts)
-            st.success(f"基准测试完成！准确率: {accuracy:.2f}%")
+    if st.button("Start Benchmark Testing"):
+        # Check if both directories are non-empty
+        safe_non_empty = is_directory_non_empty("test_dataset/safe")
+        vulnerable_non_empty = is_directory_non_empty("test_dataset/vulnerable")
+
+        if safe_non_empty or vulnerable_non_empty:
+            accuracy = benchmark_contracts(check_rag)
+            st.success(f"Benchmark testing completed! Accuracy: {accuracy:.2f}%")
         else:
-            st.warning("⚠️ 请上传至少一个智能合约文件进行基准测试。")
+            st.warning("⚠️ Please ensure at least one directory (safe or vulnerable) contains contract files for benchmark testing.")
 
     # 侧边栏
     with st.sidebar:
@@ -70,7 +77,7 @@ def main():
         
         # 显示当前状态
         if check_database_exists():
-            st.success("✅ Database Status：Ready")
+            st.success("✅ Database Status: Ready")
         else:
             st.info("📝 Status: Waiting for uploading PDF.")
 
@@ -79,10 +86,10 @@ def main():
                 import shutil
                 if os.path.exists("faiss_db"):
                     shutil.rmtree("faiss_db")
-                st.success("数据库已清除")
+                st.success("Database has been cleared")
                 st.rerun()
             except Exception as e:
-                st.error(f"清除失败: {e}")
+                st.error(f"Clear failed: {e}")
         
         st.markdown("---")
         
@@ -101,7 +108,7 @@ def main():
         
         # 处理按钮
         process_button = st.button(
-            "🚀 submit and process", 
+            "🚀 Submit and Process", 
             disabled=not pdf_doc,
             use_container_width=True
         )
@@ -124,7 +131,7 @@ def main():
                         # 创建向量数据库
                         vector_store(text_chunks)
                         
-                        st.success("✅ Finish Processing! Now You can start asking questions.")
+                        st.success("✅ Finish Processing! Now you can start asking questions.")
                         st.balloons()
                         st.rerun()
                         
