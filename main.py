@@ -42,14 +42,14 @@ def main():
     # 基准测试部分
     st.markdown("---")
     st.header("Benchmark Testing for Smart Contract Vulnerability Detection")
-    
-    # 添加复选框，询问是否为有漏洞的合约
-    is_vulnerable = st.checkbox("所有上传的合约是否为有漏洞的合约？", value=False)
-    
+
+    # 添加单选框，询问是否为有漏洞的合约
+    is_vulnerable = st.radio("Is the uploaded contract vulnerable?", ("Yes", "No"), index=1)
+
     # Upload multiple smart contract files
     uploaded_contracts = st.file_uploader("📂 Upload smart contract files (.sol)", type=["sol"], accept_multiple_files=True)
     if uploaded_contracts and st.button("Upload"):
-        save_dir = f"test_dataset/{'vulnerable' if is_vulnerable else 'safe'}"
+        save_dir = f"test_dataset/{'vulnerable' if is_vulnerable == 'Yes' else 'safe'}"
         os.makedirs(save_dir, exist_ok=True)  # 确保目录存在
         for uploaded_file in uploaded_contracts:
             save_path = os.path.join(save_dir, uploaded_file.name)

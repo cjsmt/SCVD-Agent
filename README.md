@@ -59,7 +59,23 @@
    streamlit run main.py
    ```
 2. 在浏览器中打开 http://localhost:8501。
+   ![init](img/init.png)
 
-3. 上传智能合约文件并输入问题，点击提交以获取检测结果。
+3. 首先上传数据库，记载常见智能合约漏洞类型的PDF文件。
+   ![database](img/database.png)
 
-4. 使用基准测试功能，上传多个合约文件并选择其标签（安全或有漏洞），以评估模型的准确性。
+4. 上传智能合约文件并输入问题，点击提交以获取检测结果。
+   ![result1](img/result1.png)
+   ![result2](img/result2.png)
+
+5. 使用基准测试功能，首先在你的工作目录存在test_dataset文件夹，并存在safe和vulnerable两个子文件夹。
+   ```bash
+   mkdir test_database
+   cd test_database
+   mkdir safe vulnerable
+   ```
+
+6. 将安全无漏洞的智能合约代码存放到test_dataset/safe目录下，将有漏洞的代码存放到test_dataset/vulnerable目录下。
+7. 也可以在工具界面拖拽上传所要测试的智能合约代码，注意勾选是否“vulnerable”选项，
+8. 点击Start Benchmark Testing即可完成基准测试
+   ![benchmark_result](img/benchmark_result.png)

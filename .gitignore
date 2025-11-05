@@ -3,3 +3,5 @@
 __pycache__/
 faiss_db/
 test.py
+test_dataset/safe/*
+test_dataset/vulnerable/*
