@@ -17,7 +17,7 @@ def get_conversational_chain(tools, ques, contract_code):
     prompt = ChatPromptTemplate.from_messages([
         (
             "system", 
-            """你是AI助手，请根据提供的上下文回答问题，确保提供所有细节，如果答案不在上下文中，请说"答案不在上下文中"，不要提供错误的答案"""
+            """你是AI助手，请根据提供的上下文回答问题，如果答案不在上下文中，请说"答案不在上下文中"，请严格遵守上下文，不要提供错误的答案，切记不要自由发挥"""
         ),
         ("placeholder", "{chat_history}"),
         ("human", "{input}"),
@@ -31,7 +31,7 @@ def get_conversational_chain(tools, ques, contract_code):
     agent = create_tool_calling_agent(llm, tool, prompt)
     agent_executor = AgentExecutor(agent=agent, tools=tool, verbose=True)
 
-    full_input = f"合约代码：\n{contract_code}\n\n问题：{ques}"
+    full_input = f"合约代码：\n{contract_code}\n\n问题：{ques}，如果没有上下文中涉及的安全漏洞，请说”没有安全漏洞“，不要硬挑错\n"
     response = agent_executor.invoke({"input": full_input})
     return response
 

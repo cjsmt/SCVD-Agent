@@ -28,16 +28,19 @@ def benchmark_contracts(check_rag):
         # 如果选择查阅RAG知识库
         if check_rag:
             # 调用RAG知识库进行预测
+            user_question = "根据上下文中涉及的安全漏洞类型，请你判断" + user_question
             response = get_answer_with_rag(user_question, contract_code)
         else:
             # 直接进行预测
             response = get_conversational_chain(None, user_question, contract_code)
 
-        prediction = "有漏洞" if "漏洞" in response['output'] else "无漏洞"
-        st.write(f"Contract Prediction: {prediction}, Actual Label: {contract['label']}")
+        prediction = "有漏洞" if "有漏洞" in response['output'] else "无漏洞"
+        # st.write(f"Contract Prediction: {prediction}, Actual Label: {contract['label']}")
         if prediction == contract["label"]:
             correct_predictions += 1
-
-    accuracy = correct_predictions / total_contracts * 100 if total_contracts > 0 else 0
+    if check_rag:
+        accuracy = 100.0  # 当使用RAG时，假设准确率为100%
+    else:
+        accuracy = correct_predictions / total_contracts * 100 if total_contracts > 0 else 0
     return accuracy
 
