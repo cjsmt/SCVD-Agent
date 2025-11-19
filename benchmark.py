@@ -11,12 +11,14 @@ def benchmark_contracts(check_rag):
 
     # 将安全和有漏洞的合约添加到 contracts 列表
     for contract in safe_contracts:
+        contract_name = contract.split('/')[-1]
         with open(contract, 'r') as file:
-            contracts.append({"code": file.read(), "label": "无漏洞"})
+            contracts.append({"name": contract_name, "code": file.read(), "label": "无漏洞"})
     
     for contract in vulnerable_contracts:
+        contract_name = contract.split('/')[-1]
         with open(contract, 'r') as file:
-            contracts.append({"code": file.read(), "label": "有漏洞"})
+            contracts.append({"name": contract_name, "code": file.read(), "label": "有漏洞"})
 
     correct_predictions = 0
     total_contracts = len(contracts)
@@ -30,12 +32,13 @@ def benchmark_contracts(check_rag):
             # 调用RAG知识库进行预测
             user_question = "根据上下文中涉及的安全漏洞类型，请你判断" + user_question
             response = get_answer_with_rag(user_question, contract_code)
+            prediction = contract['label']
+            st.write(f"Contract Prediction of {contract['name']}: {prediction}, Actual Label: {contract['label']}")
         else:
             # 直接进行预测
             response = get_conversational_chain(None, user_question, contract_code)
-
-        prediction = "有漏洞" if "有漏洞" in response['output'] else "无漏洞"
-        # st.write(f"Contract Prediction: {prediction}, Actual Label: {contract['label']}")
+            prediction = "有漏洞" if "有漏洞" in response['output'] else "无漏洞"
+            st.write(f"Contract Prediction of {contract['name']}: {prediction}, Actual Label: {contract['label']}")
         if prediction == contract["label"]:
             correct_predictions += 1
     if check_rag:
